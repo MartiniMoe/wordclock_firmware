@@ -4,6 +4,7 @@
 #include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
 #include <APA102.h>
+#include "Display.hpp"
 
 #define SSID "HaSi-Kein-Internet-Legacy"
 #define PASSWORD "bugsbunny"
@@ -15,14 +16,78 @@ const int led = 13;
 const uint8_t dataPin = 12;
 const uint8_t clockPin = 13;
 APA102<dataPin, clockPin> ledStrip;
-const uint16_t ledCount = 58;
+const uint16_t ledCount = 110;
+const uint16_t ledBrightness = 5;
+rgb_color color {
+  .red = 255,
+  .green = 0,
+  .blue = 0
+};
 rgb_color colors[ledCount];
 
 void fillMonoColor(rgb_color col) {
   for(int i = 0; i < ledCount; i++) {
     colors[i] = col;
   }
-  ledStrip.write(colors, ledCount, 31);
+}
+
+void clear() {
+  rgb_color clearCol {
+    .red = 0,
+    .green = 0,
+    .blue = 0
+  };
+  for(int i = 0; i < ledCount; i++) {
+    colors[i] = clearCol;
+  }
+}
+
+void setPixel(int x, int y, rgb_color col) {
+  int xOffset = (y % 2 == 1 ? 10 - x : x);
+  colors[y * 11 + xOffset] = col;
+}
+
+void displayEs(rgb_color col) {
+  setPixel(0, 9, col);
+  setPixel(1, 9, col);
+}
+
+void displayIst(rgb_color col) {
+  setPixel(3, 9, col);
+  setPixel(4, 9, col);
+  setPixel(5, 9, col);
+}
+
+void displayViertel(rgb_color col) {
+  setPixel(4, 7, col);
+  setPixel(5, 7, col);
+  setPixel(6, 7, col);
+  setPixel(7, 7, col);
+  setPixel(8, 7, col);
+  setPixel(9, 7, col);
+  setPixel(10, 7, col);
+}
+
+void displayVor(rgb_color col) {
+  setPixel(6, 6, col);
+  setPixel(7, 6, col);
+  setPixel(8, 6, col);
+}
+
+void displayZwei(rgb_color col) {
+  setPixel(0, 4, col);
+  setPixel(1, 4, col);
+  setPixel(2, 4, col);
+  setPixel(3, 4, col);
+}
+
+void showDemoTime() {
+  clear();
+  displayEs(color);
+  displayIst(color);
+  displayViertel(color);
+  displayVor(color);
+  displayZwei(color);
 }
 
 void handleRoot() {
@@ -86,6 +151,8 @@ void setup(void){
   Serial.println(SSID);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+  Serial.print("Number of LEDs: ");
+  Serial.println(ledCount);
 
   if (MDNS.begin("esp8266")) {
     Serial.println("MDNS responder started");
@@ -100,13 +167,16 @@ void setup(void){
   server.begin();
   Serial.println("HTTP server started");
 
-  rgb_color blue;
-  blue.red = 0;
-  blue.green = 0;
-  blue.blue = 255;
-  fillMonoColor(blue);
+  rgb_color start;
+  start.red = 255;
+  start.green = 255;
+  start.blue = 255;
+  //fillMonoColor(start);
+  //fillRainbow();
+  showDemoTime();
 }
 
 void loop(void){
   server.handleClient();
+  ledStrip.write(colors, ledCount, ledBrightness);
 }
