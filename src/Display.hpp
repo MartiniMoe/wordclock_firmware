@@ -18,12 +18,20 @@ private:
 
     APA102<PIN_DATA, PIN_CLOCK> _ledStrip;
 
-    void enablePixel(int x, int y);
+    int convertCoordsToArrayPos(int x, int y);
 
 public:
     Display();
 
+    void enablePixel(int x, int y);
+    void clearPixels();
+    void clearPixels(rgb_color col);
     void writePixels();
+
+    void setPixelColor(int x, int y, rgb_color col);
+    bool getEnabled(int x, int y);
+    int getNumEnabledPixels();
+    void highlightProgress(int nominator, int denominator);
 
     void displayEs();
     void displayIst();
@@ -31,11 +39,14 @@ public:
     void displayPrefixZehn();
     void displayZwanzig();
     void displayDreiviertel();
+    void displayViertel();
     void displayNach();
     void displayVor();
     void displayHalb();
     void displayZwoelf();
     void displayZwei();
+    void displayEin();
+    void displayEins();
     void displaySieben();
     void displayDrei();
     void displayFuenf();
