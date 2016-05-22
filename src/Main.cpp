@@ -10,9 +10,14 @@ void setup(void){
     wordclock.setupWebserver();
     wordclock.setupNtp();
     Serial.println(ip);
+
+    //ArduinoOTA.setHostname("wordclock");
+    //ArduinoOTA.setPassword("bugsbunny");
+    //ArduinoOTA.begin();
 }
 
 void loop(void){
+    //ArduinoOTA.handle();
     wordclock.loop();
     delay(1000);
 }

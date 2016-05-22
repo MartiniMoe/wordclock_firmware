@@ -2,13 +2,23 @@
 
 Wordclock::Wordclock()
     : _server(80),
-      _display() {
-        MDNS.begin("wordclock");
+      _display(),
+      _showEsIst(true),
+      _hostname("wordclock"),
+      _ssid(""),
+      _password("") {
+          //MDNS.begin(_hostname.c_str());
 }
 
 void Wordclock::loop() {
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        connectWiFi();
+    }
+
     _server.handleClient();
-    _display.clearPixels( rgb_color { .red = 0, .green = 255, .blue = 0 });
+    //_display.clearPixels( rgb_color { .red = 0, .green = 255, .blue = 0 });
+    _display.clearPixels();
     time_t now_time = now();
     int now_hour = hour(now_time);
     int now_minute = minute(now_time);
@@ -20,8 +30,24 @@ void Wordclock::loop() {
     _display.writePixels();
 }
 
+String Wordclock::connectWiFi() {
+    WiFi.hostname(_hostname);
+    WiFi.begin(_ssid.c_str(), _password.c_str());
+
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println();
+
+    return WiFi.localIP().toString();
+}
+
 String Wordclock::connectWiFi(String ssid, String password) {
-    WiFi.begin(ssid.c_str(), password.c_str());
+    _ssid = ssid.c_str();
+    _password = password.c_str();
+    WiFi.hostname(_hostname);
+    WiFi.begin(_ssid.c_str(), _password.c_str());
 
     while (WiFi.status() != WL_CONNECTED) {
       delay(500);
@@ -39,8 +65,10 @@ void Wordclock::setupNtp() {
 }
 
 void Wordclock::handleTime(int hour, int minute) {
-    _display.displayEs();
-    _display.displayIst();
+    if (_showEsIst) {
+        _display.displayEs();
+        _display.displayIst();
+    }
     if (minute < 30) {
         handleHour(hour, minute);
     } else {
@@ -156,7 +184,7 @@ void Wordclock::handleProgress(int minute, int second) {
     _display.highlightProgress(nominator, 300);
 }
 
-void Wordclock::handleRoot() {
+/*void Wordclock::handleRoot() {
     _server.send(200, "text/plain", "hello from esp8266!");
 }
 
@@ -184,11 +212,37 @@ void Wordclock::handleColors() {
 void Wordclock::handleNotFound() {
     String message = "File Not Found";
     _server.send(404, "text/plain", message);
-}
+}*/
 
 void Wordclock::setupWebserver() {
     _server.on("/", [this]() {
-        _server.send(200, "text/plain", "hello from esp8266!");
+        String stateEsIstOn = "";
+        String stateEsIstOff = "";
+        if (_showEsIst) {
+            stateEsIstOn = "checked";
+            stateEsIstOff = "";
+        } else {
+            stateEsIstOff = "checked";
+            stateEsIstOn = "";
+        }
+        _server.send(200, "text/html", "<html><head><title>Wordclock Configuration</title></head>"
+            "<body><h1>Wordclock Configuration</h1>"
+            "<form action='' method='get'><table>"
+            "<tr><td>Zeige <i>ES IST</i></td><td><input type='radio' name='showEsIst' value='on' " + stateEsIstOn + ">Ein<br>"
+                "<input type='radio' name='showEsIst' value='off' " + stateEsIstOff + ">Aus</td></tr>"
+            "<table><br><input type='submit' value='Speichern'></form></body></html>");
+        for (int i = 0; i < _server.args(); i++) {
+            if (_server.argName(i) == "showEsIst") {
+                Serial.println("showEsIst variable found. value: " + _server.arg(i));
+                if (_server.arg(i) == "on") {
+                    Serial.println("switching showEsIst on");
+                    _showEsIst = true;
+                } else if (_server.arg(i) == "off") {
+                    Serial.println("switching showEsIst off");
+                    _showEsIst = false;
+                }
+            }
+        }
     });
     //_server.on("/color", handleColors);
     //_server.onNotFound(handleNotFound);

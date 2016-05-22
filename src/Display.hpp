@@ -12,8 +12,12 @@
 
 class Display {
 private:
+    rgb_color _color1;
+    rgb_color _color2;
     rgb_color _ledColors[LED_COUNT];
+    rgb_color _ledColorsNew[LED_COUNT];
     bool _ledColorsMask[LED_COUNT];
+    bool _ledColorsMaskNew[LED_COUNT];
     int _ledBrightness;
 
     APA102<PIN_DATA, PIN_CLOCK> _ledStrip;

@@ -8,12 +8,18 @@
 #include <TimeLib.h>
 #include <NtpClientLib.h>
 #include "Display.hpp"
+#include <ArduinoOTA.h>
 
 class Wordclock {
 private:
     ESP8266WebServer _server;
     ntpClient *_ntp;
     Display _display;
+    bool _showEsIst;
+
+    String _hostname;
+    String _ssid;
+    String _password;
 
     void handleRoot();
     void handleColors();
@@ -27,6 +33,7 @@ private:
 public:
     Wordclock();
 
+    String connectWiFi();
     String connectWiFi(String ssid, String password);
     void loop();
     void setupNtp();
