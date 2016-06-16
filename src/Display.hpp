@@ -12,12 +12,11 @@
 
 class Display {
 private:
+    rgb_color _colorBlank;
     rgb_color _color1;
     rgb_color _color2;
     rgb_color _ledColors[LED_COUNT];
     rgb_color _ledColorsNew[LED_COUNT];
-    bool _ledColorsMask[LED_COUNT];
-    bool _ledColorsMaskNew[LED_COUNT];
     int _ledBrightness;
 
     APA102<PIN_DATA, PIN_CLOCK> _ledStrip;
@@ -32,8 +31,17 @@ public:
     void clearPixels(rgb_color col);
     void writePixels();
 
+    int getBrightness();
+    void setBrightness(int br);
+
+    rgb_color getColor1();
+    void setColor1(rgb_color col1);
+    rgb_color getColor2();
+    void setColor2(rgb_color col2);
+
     void setPixelColor(int x, int y, rgb_color col);
     bool getEnabled(int x, int y);
+    bool getEnabled(int i);
     int getNumEnabledPixels();
     void highlightProgress(int nominator, int denominator);
 

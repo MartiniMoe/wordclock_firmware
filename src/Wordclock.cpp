@@ -59,7 +59,7 @@ String Wordclock::connectWiFi(String ssid, String password) {
 }
 
 void Wordclock::setupNtp() {
-    _ntp = ntpClient::getInstance("pool.ntp.org", 1);
+    _ntp = ntpClient::getInstance("de.pool.ntp.org", 1);
     _ntp->setInterval(15, 1800);
     _ntp->begin();
 }
@@ -69,7 +69,7 @@ void Wordclock::handleTime(int hour, int minute) {
         _display.displayEs();
         _display.displayIst();
     }
-    if (minute < 30) {
+    if (minute < 25) {
         handleHour(hour, minute);
     } else {
         handleHour(hour + 1, minute);
@@ -184,36 +184,6 @@ void Wordclock::handleProgress(int minute, int second) {
     _display.highlightProgress(nominator, 300);
 }
 
-/*void Wordclock::handleRoot() {
-    _server.send(200, "text/plain", "hello from esp8266!");
-}
-
-void Wordclock::handleColors() {
-    _server.send(200, "text/html", "<html><head><title>Colors</title></head>"
-        "<body><form action='' method='get'>"
-        "red: <input type='text' name='red'><br/>"
-        "green: <input type='text' name='green'><br/>"
-        "blue: <input type='text' name='blue'><br/>"
-        "<input type='submit' value='Set'>"
-        "</form></body></html>");
-    //rgb_color newCol;
-    //for (int i = 0; i < _server.args(); i++) {
-    //    if (server.argName(i) == "red") {
-    //        newCol.red = atoi(_server.arg(i).c_str());
-    //    } else if (server.argName(i) == "green") {
-    //        newCol.green = atoi(_server.arg(i).c_str());
-    //    } else if (server.argName(i) == "blue") {
-    //        newCol.blue = atoi(_server.arg(i).c_str());
-    //    }
-    //}
-    //fillMonoColor(newCol);
-}
-
-void Wordclock::handleNotFound() {
-    String message = "File Not Found";
-    _server.send(404, "text/plain", message);
-}*/
-
 void Wordclock::setupWebserver() {
     _server.on("/", [this]() {
         String stateEsIstOn = "";
@@ -225,24 +195,56 @@ void Wordclock::setupWebserver() {
             stateEsIstOff = "checked";
             stateEsIstOn = "";
         }
+        String stateBrightness = String(_display.getBrightness());
+        rgb_color stateCol1 = rgb_color(_display.getColor1());
+        rgb_color stateCol2 = rgb_color(_display.getColor2());
+        rgb_color col1;
+        rgb_color col2;
         _server.send(200, "text/html", "<html><head><title>Wordclock Configuration</title></head>"
             "<body><h1>Wordclock Configuration</h1>"
             "<form action='' method='get'><table>"
             "<tr><td>Zeige <i>ES IST</i></td><td><input type='radio' name='showEsIst' value='on' " + stateEsIstOn + ">Ein<br>"
                 "<input type='radio' name='showEsIst' value='off' " + stateEsIstOff + ">Aus</td></tr>"
+            "<tr><td>Helligkeit</td><td><input type='number' min='0' max='31' name='brightness' value='" + stateBrightness + "'></td></tr>"
+            "<tr><td>Farbe 1</td><td>R: <input type='number' min='0' max='255' name='col1red' value='" + stateCol1.red + "'><br>"
+            "G: <input type='number' min='0' max='255' name='col1green' value='" + stateCol1.green + "'><br>"
+            "B: <input type='number' min='0' max='255' name='col1blue' value='" + stateCol1.blue + "'></td></tr>"
+            "<tr><td>Farbe 2</td><td>R: <input type='number' min='0' max='255' name='col2red' value='" + stateCol2.red + "'><br>"
+            "G: <input type='number' min='0' max='255' name='col2green' value='" + stateCol2.green + "'><br>"
+            "B: <input type='number' min='0' max='255' name='col2blue' value='" + stateCol2.blue + "'></td></tr>"
             "<table><br><input type='submit' value='Speichern'></form></body></html>");
         for (int i = 0; i < _server.args(); i++) {
             if (_server.argName(i) == "showEsIst") {
-                Serial.println("showEsIst variable found. value: " + _server.arg(i));
                 if (_server.arg(i) == "on") {
-                    Serial.println("switching showEsIst on");
                     _showEsIst = true;
                 } else if (_server.arg(i) == "off") {
-                    Serial.println("switching showEsIst off");
                     _showEsIst = false;
                 }
             }
+            else if (_server.argName(i) == "brightness") {
+                _display.setBrightness(_server.arg(i).toInt());
+            }
+            else if (_server.argName(i) == "col1red") {
+                col1.red = _server.arg(i).toInt();
+            }
+            else if (_server.argName(i) == "col1green") {
+                col1.green = _server.arg(i).toInt();
+            }
+            else if (_server.argName(i) == "col1blue") {
+                col1.blue = _server.arg(i).toInt();
+            }
+            else if (_server.argName(i) == "col2red") {
+                col2.red = _server.arg(i).toInt();
+            }
+            else if (_server.argName(i) == "col2green") {
+                col2.green = _server.arg(i).toInt();
+            }
+            else if (_server.argName(i) == "col2blue") {
+                col2.blue = _server.arg(i).toInt();
+            }
         }
+        _display.setColor1(col1);
+        _display.setColor2(col2);
     });
     //_server.on("/color", handleColors);
     //_server.onNotFound(handleNotFound);

@@ -1,23 +1,14 @@
 #include "Display.hpp"
 
 Display::Display()
-    : _color1( { .red = 0, .green = 159, .blue = 255} ),
-      _color2( { .red = 0, .green = 0, .blue = 255} ),
-      //_color2( { .red = 0, .green = 255, .blue = 0} ),
+    : _colorBlank( { .red = 0, .green = 0, .blue = 0} ),
+      _color1( { .red = 255, .green = 255, .blue = 0} ),
+      _color2( { .red = 255, .green = 127, .blue = 0} ),
       _ledColors{ _color1, },
       _ledColorsNew{ _color1, },
-      _ledColorsMask{ false, },
-      _ledColorsMaskNew{ false, },
       _ledBrightness( 16 ),
       _ledStrip() {
-    //pinMode(PIN_CLOCK, OUTPUT);
-    //pinMode(PIN_DATA, OUTPUT);
-    for (int i = 0; i < LED_COUNT; i++) {
-        _ledColors[i] = _color1;
-        _ledColorsNew[i] = _color1;
-        _ledColorsMask[i] = false;
-        _ledColorsMaskNew[i] = false;
-    }
+    clearPixels();
 }
 
 int Display::convertCoordsToArrayPos(int x, int y) {
@@ -26,94 +17,90 @@ int Display::convertCoordsToArrayPos(int x, int y) {
 }
 
 void Display::enablePixel(int x, int y) {
-    _ledColorsMask[convertCoordsToArrayPos(x, y)] = true;
+    _ledColorsNew[convertCoordsToArrayPos(x, y)] = _color1;
 }
 
 void Display::clearPixels() {
-    //clearPixels(rgb_color { .red = 0, .green = 0, .blue = 0 });
-    clearPixels( _color1 );
+    clearPixels(_colorBlank);
 }
 
 void Display::clearPixels(rgb_color col) {
     for (int i = 0; i < LED_COUNT; i++) {
-        _ledColorsMask[i] = false;
-        _ledColors[i] = col;
-        //_ledColorsMaskNew[i] = false;
-        //_ledColorsNew[i] = col;
+        _ledColorsNew[i] = col;
     }
 }
 
 void Display::writePixels() {
-    /*rgb_color fadeLedColors[LED_COUNT] = { { .red = 0, .green = 0, .blue = 0 }, };
+    rgb_color fadeLedColors[LED_COUNT] = { { .red = 0, .green = 0, .blue = 0 }, };
 
-    // Clear colors if masks are different
-    //      == if displayed time has changed
-    bool masksAreDifferent = false;
-    for (int i = 0; i < LED_COUNT; i++) {
-        if (_ledColorsMask[i] != _ledColorsMaskNew[i]) {
-            masksAreDifferent = true;
-        }
-    }
-    if (masksAreDifferent) {
-        for (int i = 0; i < LED_COUNT; i++) {
-            _ledColors[i] = _color1;
-            _ledColorsNew[i] = _color1;
-        }
-    }
-
-    bool fadeMask[LED_COUNT];
-    for (int i = 0; i < LED_COUNT; i++) {
-        if (_ledColorsMask[i] || _ledColorsMaskNew[i]) {
-            fadeMask[i] = true;
-        } else {
-            fadeMask[i] = false;
-        }
-    }
-
-    Serial.println("Starting fade...");
     for (int i = 0; i < 255; i++) {
         // Fade amount
         float t = float(i) / 255.0;
         for (int l = 0; l < LED_COUNT; l++) {
-            if (fadeMask[l]) {
-                fadeLedColors[l].red = int(((1.0-t) * _ledColors[l].red + t * _ledColorsNew[l].red) + 0.5);
-                fadeLedColors[l].green = int(((1.0-t) * _ledColors[l].green + t * _ledColorsNew[l].green) + 0.5);
-                fadeLedColors[l].blue = int(((1.0-t) * _ledColors[l].blue + t * _ledColorsNew[l].blue) + 0.5);
-
-                //Serial.printf("blue: %d, green: %d\n", fadeLedColors[l].blue, fadeLedColors[l].green);
-                //Serial.printf("new blue: %d, new green: %d\n", _ledColorsNew[l].blue, _ledColorsNew[l].green);
-            }
+            fadeLedColors[l].red = int(((1.0-t) * _ledColors[l].red + t * _ledColorsNew[l].red) + 0.5);
+            fadeLedColors[l].green = int(((1.0-t) * _ledColors[l].green + t * _ledColorsNew[l].green) + 0.5);
+            fadeLedColors[l].blue = int(((1.0-t) * _ledColors[l].blue + t * _ledColorsNew[l].blue) + 0.5);
         }
         _ledStrip.write(fadeLedColors, LED_COUNT, _ledBrightness);
-        delay(5);
-        //Serial.println("---------------");
+        delay(3);
     }
     memcpy(_ledColors, _ledColorsNew, sizeof(_ledColorsNew));
-    memcpy(_ledColorsMask, _ledColorsMaskNew, sizeof(_ledColorsMaskNew));
-    Serial.println("Finished fading.");*/
+}
 
-    rgb_color newLedColors[LED_COUNT] = { { .red = 0, .green = 0, .blue = 0 }, };
+int Display::getBrightness() {
+    return _ledBrightness;
+}
 
-    for (int i = 0; i < LED_COUNT; i++) {
-        if (_ledColorsMask[i]) {
-            newLedColors[i] = _ledColors[i];
-        }
+void Display::setBrightness(int br) {
+    if (br <= 31 && br >= 0) {
+        _ledBrightness = br;
     }
-    _ledStrip.write(newLedColors, LED_COUNT, _ledBrightness);
+}
+
+rgb_color Display::getColor1() {
+    return _color1;
+}
+
+void Display::setColor1(rgb_color col1) {
+    _color1 = col1;
+}
+
+rgb_color Display::getColor2() {
+    return _color2;
+}
+
+void Display::setColor2(rgb_color col2) {
+    _color2 = col2;
 }
 
 void Display::setPixelColor(int x, int y, rgb_color col) {
-    _ledColors[convertCoordsToArrayPos(x, y)] = col;
+    _ledColorsNew[convertCoordsToArrayPos(x, y)] = col;
 }
 
 bool Display::getEnabled(int x, int y) {
-    return _ledColorsMask[convertCoordsToArrayPos(x, y)];
+    if (_ledColorsNew[convertCoordsToArrayPos(x, y)].red != _colorBlank.red
+        || _ledColorsNew[convertCoordsToArrayPos(x, y)].green != _colorBlank.green
+        || _ledColorsNew[convertCoordsToArrayPos(x, y)].blue != _colorBlank.blue) {
+            return true;
+    } else {
+        return false;
+    }
+}
+
+bool Display::getEnabled(int i) {
+    if (_ledColorsNew[i].red != _colorBlank.red
+        || _ledColorsNew[i].green != _colorBlank.green
+        || _ledColorsNew[i].blue != _colorBlank.blue) {
+            return true;
+    } else {
+        return false;
+    }
 }
 
 int Display::getNumEnabledPixels() {
     int c = 0;
     for (int i = 0; i < LED_COUNT; i++) {
-        if (_ledColorsMask[i]) {
+        if (getEnabled(i)) {
             c++;
         }
     }

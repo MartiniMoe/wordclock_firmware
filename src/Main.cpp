@@ -6,6 +6,7 @@ void setup(void){
     Serial.begin(9600);
     Serial.println("This is Wordclock speaking.");
 
+    //String ip = wordclock.connectWiFi("WLAN3", "7LrbV4Ddxdpl");
     String ip = wordclock.connectWiFi("HaSi-Kein-Internet-Legacy", "bugsbunny");
     wordclock.setupWebserver();
     wordclock.setupNtp();
