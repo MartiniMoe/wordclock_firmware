@@ -9,6 +9,10 @@
 #include <NtpClientLib.h>
 #include "Display.hpp"
 #include <ArduinoOTA.h>
+#include <EEPROM.h>
+
+#define ESSID_LENGTH    32
+#define PASSWORD_LENGTH 96
 
 class Wordclock {
 private:
@@ -20,6 +24,11 @@ private:
     String _hostname;
     String _ssid;
     String _password;
+    String _apSsid;
+    String _apPassword;
+
+    void readWirelessConfig();
+    void writeWirelessConfig(const char* ssid, const char* password);
 
     void handleRoot();
     void handleColors();
@@ -33,8 +42,10 @@ private:
 public:
     Wordclock();
 
-    String connectWiFi();
-    String connectWiFi(String ssid, String password);
+    void begin();
+
+    void connectWiFi(String ssid, String password, bool forceConnect);
+    void setupAccessPoint(String apSsid, String apPassword);
     void loop();
     void setupNtp();
     void setupWebserver();

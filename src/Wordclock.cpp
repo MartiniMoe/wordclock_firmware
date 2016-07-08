@@ -6,15 +6,24 @@ Wordclock::Wordclock()
       _showEsIst(true),
       _hostname("wordclock"),
       _ssid(""),
-      _password("") {
-          //MDNS.begin(_hostname.c_str());
+      _password(""),
+      _apSsid(""),
+      _apPassword("") {
+}
+
+void Wordclock::begin() {
+    EEPROM.begin(512);
+    readWirelessConfig();
+
+    Serial.println("Connecting to:");
+    Serial.println("SSID: " + _ssid);
+    Serial.println("Pass: " + _password);
+    
+    connectWiFi(_ssid, _password, true);
 }
 
 void Wordclock::loop() {
-    if (WiFi.status() != WL_CONNECTED)
-    {
-        connectWiFi();
-    }
+    connectWiFi(_ssid, _password, false);
 
     _server.handleClient();
     //_display.clearPixels( rgb_color { .red = 0, .green = 255, .blue = 0 });
@@ -30,38 +39,76 @@ void Wordclock::loop() {
     _display.writePixels();
 }
 
-String Wordclock::connectWiFi() {
-    WiFi.hostname(_hostname);
-    WiFi.begin(_ssid.c_str(), _password.c_str());
+void Wordclock::connectWiFi(String ssid, String password, bool forceConnect) {
+    static bool connecting = false;
 
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(".");
+    if ((!connecting && WiFi.status() != WL_CONNECTED) || forceConnect) {
+        connecting = true;
+
+        _ssid = ssid.c_str();
+        _password = password.c_str();
+        WiFi.hostname(_hostname);
+        WiFi.begin(_ssid.c_str(), _password.c_str());
+    } else if (WiFi.status() == WL_CONNECTED) {
+        connecting = false;
     }
-    Serial.println();
-
-    return WiFi.localIP().toString();
 }
 
-String Wordclock::connectWiFi(String ssid, String password) {
-    _ssid = ssid.c_str();
-    _password = password.c_str();
-    WiFi.hostname(_hostname);
-    WiFi.begin(_ssid.c_str(), _password.c_str());
-
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(".");
-    }
-    Serial.println();
-
-    return WiFi.localIP().toString();
+void Wordclock::setupAccessPoint(String apSsid, String apPassword) {
+    _apSsid = apSsid;
+    _apPassword = apPassword;
+    IPAddress apIp, apGw, apSn;
+    apIp.fromString("192.168.0.1");
+    apGw.fromString("192.168.0.1");
+    apSn.fromString("255.255.255.0");
+    WiFi.softAPConfig(apIp, apGw, apSn);
+    WiFi.softAP(_apSsid.c_str(), _apPassword.c_str());
 }
 
 void Wordclock::setupNtp() {
     _ntp = ntpClient::getInstance("de.pool.ntp.org", 1);
     _ntp->setInterval(15, 1800);
     _ntp->begin();
+}
+
+void Wordclock::readWirelessConfig() {
+    char tmpSsid[ESSID_LENGTH];
+    char tmpPassword[PASSWORD_LENGTH];
+
+    for (int i = 0; i < ESSID_LENGTH; i++) {
+        tmpSsid[i] = char(EEPROM.read(i));
+    }
+
+    for (int i = 0; i < PASSWORD_LENGTH; i++) {
+        tmpPassword[i] = char(EEPROM.read(ESSID_LENGTH + i));
+    }
+
+    _ssid = String(tmpSsid);
+    _password = String(tmpPassword);
+}
+
+void Wordclock::writeWirelessConfig(const char* ssid, const char* password) {
+    for (int i = 0; i < ESSID_LENGTH - 1; i++) {
+        EEPROM.write(i, ssid[i]);
+
+        if (ssid[i] == 0) {
+            break;
+        }
+    }
+
+    EEPROM.write(ESSID_LENGTH - 1, 0);
+
+    for (int i = 0; i < PASSWORD_LENGTH - 1; i++) {
+        EEPROM.write(ESSID_LENGTH + i, password[i]);
+
+        if (password[i] == 0) {
+            break;
+        }
+    }
+
+    EEPROM.write(ESSID_LENGTH + PASSWORD_LENGTH - 1, 0);
+
+    EEPROM.commit();
 }
 
 void Wordclock::handleTime(int hour, int minute) {
@@ -212,6 +259,8 @@ void Wordclock::setupWebserver() {
             "<tr><td>Farbe 2</td><td>R: <input type='number' min='0' max='255' name='col2red' value='" + stateCol2.red + "'><br>"
             "G: <input type='number' min='0' max='255' name='col2green' value='" + stateCol2.green + "'><br>"
             "B: <input type='number' min='0' max='255' name='col2blue' value='" + stateCol2.blue + "'></td></tr>"
+            "<tr><td>WLAN Name</td><td><input type='text' name='wifiSsid' value='" + _ssid + "'><br>"
+            "WLAN Passwort</td><td><input type='password' name='wifiPassword' value='" + _password + "'></td></tr>"
             "<table><br><input type='submit' value='Speichern'></form></body></html>");
         for (int i = 0; i < _server.args(); i++) {
             if (_server.argName(i) == "showEsIst") {
@@ -220,28 +269,36 @@ void Wordclock::setupWebserver() {
                 } else if (_server.arg(i) == "off") {
                     _showEsIst = false;
                 }
-            }
-            else if (_server.argName(i) == "brightness") {
+            } else if (_server.argName(i) == "brightness") {
                 _display.setBrightness(_server.arg(i).toInt());
-            }
-            else if (_server.argName(i) == "col1red") {
+            } else if (_server.argName(i) == "col1red") {
                 col1.red = _server.arg(i).toInt();
-            }
-            else if (_server.argName(i) == "col1green") {
+            } else if (_server.argName(i) == "col1green") {
                 col1.green = _server.arg(i).toInt();
-            }
-            else if (_server.argName(i) == "col1blue") {
+            } else if (_server.argName(i) == "col1blue") {
                 col1.blue = _server.arg(i).toInt();
-            }
-            else if (_server.argName(i) == "col2red") {
+            } else if (_server.argName(i) == "col2red") {
                 col2.red = _server.arg(i).toInt();
-            }
-            else if (_server.argName(i) == "col2green") {
+            } else if (_server.argName(i) == "col2green") {
                 col2.green = _server.arg(i).toInt();
-            }
-            else if (_server.argName(i) == "col2blue") {
+            } else if (_server.argName(i) == "col2blue") {
                 col2.blue = _server.arg(i).toInt();
+            } else if (_server.argName(i) == "wifiSsid") {
+                _ssid = _server.arg(i);
+            } else if (_server.argName(i) == "wifiPassword") {
+                _password = _server.arg(i);
             }
+            writeWirelessConfig(_ssid.c_str(), _password.c_str());
+            connectWiFi(_ssid, _password, true);
+
+            Serial.println("Wrote wireless config:");
+            Serial.println("New SSID: " + _ssid);
+            Serial.println("New Pass: " + _password);
+
+            readWirelessConfig();
+
+            Serial.println("EEPROM SSID: " + _ssid);
+            Serial.println("EEPROM Pass: " + _password);
         }
         _display.setColor1(col1);
         _display.setColor2(col2);

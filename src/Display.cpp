@@ -3,7 +3,7 @@
 Display::Display()
     : _colorBlank( { .red = 0, .green = 0, .blue = 0} ),
       _color1( { .red = 255, .green = 255, .blue = 0} ),
-      _color2( { .red = 255, .green = 127, .blue = 0} ),
+      _color2( { .red = 255, .green = 63, .blue = 0} ),
       _ledColors{ _color1, },
       _ledColorsNew{ _color1, },
       _ledBrightness( 16 ),
