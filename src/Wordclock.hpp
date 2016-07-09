@@ -39,6 +39,7 @@ private:
     void handleHour(int hour, int minute);
     void handleMinute(int minute);
     void handleProgress(int minute, int second);
+
 public:
     Wordclock();
 
@@ -49,6 +50,8 @@ public:
     void loop();
     void setupNtp();
     void setupWebserver();
+    rgb_color parseRGB(String hexstring);
+    String generateRGB(rgb_color color);
 };
 
 #endif

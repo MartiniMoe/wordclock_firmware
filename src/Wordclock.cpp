@@ -18,7 +18,7 @@ void Wordclock::begin() {
     Serial.println("Connecting to:");
     Serial.println("SSID: " + _ssid);
     Serial.println("Pass: " + _password);
-    
+
     connectWiFi(_ssid, _password, true);
 }
 
@@ -231,8 +231,23 @@ void Wordclock::handleProgress(int minute, int second) {
     _display.highlightProgress(nominator, 300);
 }
 
+rgb_color Wordclock::parseRGB(String hexstring) {
+    long number = (long) strtol(&hexstring[1], NULL, 16);
+    int r = number >> 16;
+    int g = number >> 8 & 0xFF;
+    int b = number & 0xFF;
+
+    return rgb_color{.red = (uint8) r, .green = (uint8) g, .blue = (uint8) b};
+}
+
+String Wordclock::generateRGB(rgb_color color) {
+    char hex[7] = {0};
+    sprintf(hex, "%02X%02X%02X", color.red, color.green, color.blue);
+    return String("#" + String(hex));
+}
+
 void Wordclock::setupWebserver() {
-    _server.on("/", [this]() {
+    _server.on("/", HTTP_GET, [this]() {
         String stateEsIstOn = "";
         String stateEsIstOff = "";
         if (_showEsIst) {
@@ -245,23 +260,26 @@ void Wordclock::setupWebserver() {
         String stateBrightness = String(_display.getBrightness());
         rgb_color stateCol1 = rgb_color(_display.getColor1());
         rgb_color stateCol2 = rgb_color(_display.getColor2());
+
+        String stateCol1_str = generateRGB(stateCol1);
+        String stateCol2_str = generateRGB(stateCol2);
+
         rgb_color col1;
         rgb_color col2;
-        _server.send(200, "text/html", "<html><head><title>Wordclock Configuration</title></head>"
+        _server.send(200, "text/html", "<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Wordclock Configuration</title></head>"
             "<body><h1>Wordclock Configuration</h1>"
-            "<form action='' method='get'><table>"
+            "<form action='/' method='POST'><table>"
             "<tr><td>Zeige <i>ES IST</i></td><td><input type='radio' name='showEsIst' value='on' " + stateEsIstOn + ">Ein<br>"
                 "<input type='radio' name='showEsIst' value='off' " + stateEsIstOff + ">Aus</td></tr>"
             "<tr><td>Helligkeit</td><td><input type='number' min='0' max='31' name='brightness' value='" + stateBrightness + "'></td></tr>"
-            "<tr><td>Farbe 1</td><td>R: <input type='number' min='0' max='255' name='col1red' value='" + stateCol1.red + "'><br>"
-            "G: <input type='number' min='0' max='255' name='col1green' value='" + stateCol1.green + "'><br>"
-            "B: <input type='number' min='0' max='255' name='col1blue' value='" + stateCol1.blue + "'></td></tr>"
-            "<tr><td>Farbe 2</td><td>R: <input type='number' min='0' max='255' name='col2red' value='" + stateCol2.red + "'><br>"
-            "G: <input type='number' min='0' max='255' name='col2green' value='" + stateCol2.green + "'><br>"
-            "B: <input type='number' min='0' max='255' name='col2blue' value='" + stateCol2.blue + "'></td></tr>"
-            "<tr><td>WLAN Name</td><td><input type='text' name='wifiSsid' value='" + _ssid + "'><br>"
-            "WLAN Passwort</td><td><input type='password' name='wifiPassword' value='" + _password + "'></td></tr>"
+            "<tr><td>Farbe 1</td><td><input type='color' name='col1' value='" + stateCol1_str+ "'></td></tr>"
+            "<tr><td>Farbe 2</td><td><input type='color' name='col2' value='" + stateCol2_str+ "'></td></tr>"
+            "<tr><td>WLAN Name</td><td><input type='text' name='wifiSsid' value='" + _ssid + "'></td></tr>"
+            "<tr><td>WLAN Passwort</td><td><input type='password' name='wifiPassword' value='" + _password + "'></td></tr>"
             "<table><br><input type='submit' value='Speichern'></form></body></html>");
+    });
+
+    _server.on("/", HTTP_POST, [this]() {
         for (int i = 0; i < _server.args(); i++) {
             if (_server.argName(i) == "showEsIst") {
                 if (_server.arg(i) == "on") {
@@ -271,18 +289,10 @@ void Wordclock::setupWebserver() {
                 }
             } else if (_server.argName(i) == "brightness") {
                 _display.setBrightness(_server.arg(i).toInt());
-            } else if (_server.argName(i) == "col1red") {
-                col1.red = _server.arg(i).toInt();
-            } else if (_server.argName(i) == "col1green") {
-                col1.green = _server.arg(i).toInt();
-            } else if (_server.argName(i) == "col1blue") {
-                col1.blue = _server.arg(i).toInt();
-            } else if (_server.argName(i) == "col2red") {
-                col2.red = _server.arg(i).toInt();
-            } else if (_server.argName(i) == "col2green") {
-                col2.green = _server.arg(i).toInt();
-            } else if (_server.argName(i) == "col2blue") {
-                col2.blue = _server.arg(i).toInt();
+            } else if (_server.argName(i) == "col1") {
+                _display.setColor1(parseRGB(_server.arg(i)));
+            } else if (_server.argName(i) == "col2") {
+                _display.setColor2(parseRGB(_server.arg(i)));
             } else if (_server.argName(i) == "wifiSsid") {
                 _ssid = _server.arg(i);
             } else if (_server.argName(i) == "wifiPassword") {
@@ -300,8 +310,7 @@ void Wordclock::setupWebserver() {
             Serial.println("EEPROM SSID: " + _ssid);
             Serial.println("EEPROM Pass: " + _password);
         }
-        _display.setColor1(col1);
-        _display.setColor2(col2);
+        _server.send(200, "text/html", "<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Wordclock Configuration</title></head><body><a href=\"/\">Zurück</a></body></html>");
     });
     //_server.on("/color", handleColors);
     //_server.onNotFound(handleNotFound);
