@@ -13,6 +13,7 @@ Wordclock::Wordclock()
 
 void Wordclock::begin() {
     EEPROM.begin(512);
+    //writeWirelessConfig("HaSi-Kein-Internet-Legacy", "bugsbunny");
     readWirelessConfig();
 
     Serial.println("Connecting to:");
@@ -247,45 +248,87 @@ String Wordclock::generateRGB(rgb_color color) {
 }
 
 void Wordclock::setupWebserver() {
+    _server.on("/pure-min-reduced.css", HTTP_GET, [this]() {
+        _server.send(200, "text/css", F(CONFIG_PAGE_CSS));
+
+        Serial.println("Delivered /pure-min-reduced.css");
+    });
+
     _server.on("/", HTTP_GET, [this]() {
         String stateEsIstOn = "";
-        String stateEsIstOff = "";
+
         if (_showEsIst) {
             stateEsIstOn = "checked";
-            stateEsIstOff = "";
         } else {
-            stateEsIstOff = "checked";
             stateEsIstOn = "";
         }
+
         String stateBrightness = String(_display.getBrightness());
+
         rgb_color stateCol1 = rgb_color(_display.getColor1());
         rgb_color stateCol2 = rgb_color(_display.getColor2());
 
         String stateCol1_str = generateRGB(stateCol1);
         String stateCol2_str = generateRGB(stateCol2);
 
-        rgb_color col1;
-        rgb_color col2;
-        _server.send(200, "text/html", "<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Wordclock Configuration</title></head>"
-            "<body><h1>Wordclock Configuration</h1>"
-            "<form action='/' method='POST'><table>"
-            "<tr><td>Zeige <i>ES IST</i></td><td><input type='radio' name='showEsIst' value='on' " + stateEsIstOn + ">Ein<br>"
-                "<input type='radio' name='showEsIst' value='off' " + stateEsIstOff + ">Aus</td></tr>"
-            "<tr><td>Helligkeit</td><td><input type='number' min='0' max='31' name='brightness' value='" + stateBrightness + "'></td></tr>"
-            "<tr><td>Farbe 1</td><td><input type='color' name='col1' value='" + stateCol1_str+ "'></td></tr>"
-            "<tr><td>Farbe 2</td><td><input type='color' name='col2' value='" + stateCol2_str+ "'></td></tr>"
-            "<tr><td>WLAN Name</td><td><input type='text' name='wifiSsid' value='" + _ssid + "'></td></tr>"
-            "<tr><td>WLAN Passwort</td><td><input type='password' name='wifiPassword' value='" + _password + "'></td></tr>"
-            "<table><br><input type='submit' value='Speichern'></form></body></html>");
+        _server.send(200, "text/html",
+            "<html>"
+            "<head>"
+            "<meta charset='UTF-8'>"
+            "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+            "<title>Wordclock Configuration</title>"
+            "<link rel='stylesheet' type='text/css' href='/pure-min-reduced.css'>"
+            "<style>"
+            "h1 { text-align: center; }"
+            ".wordclock-content { background: #F0F0F0; border: #F0F0F0 4px solud; border-radius: 8px; width: 40%; min-width: 200pt; margin: 0 auto; padding: 20px; }"
+            "</style>"
+            "</head>"
+            "<body>"
+            "<h1>Wordclock</h1>"
+            "<div class='wordclock-content'>"
+            "<form action='/' method='POST' class='pure-form'>"
+            "<label>Wordclock Einstellungen:</label>"
+            "<fieldset>"
+            "<div class='pure-g' style='margin-bottom: 10pt;'>"
+            "<div class='pure-control-group pure-u-1-2'>"
+            "<label>Farbe 1:</label><br>"
+            "<input type='color' name='col1' class='pure-input-1 pure-u-23-24' style='height: 32px;' value='" + stateCol1_str + "'>"
+            "</div>"
+            "<div class='pure-control-group pure-u-1-2'>"
+            "<label>Farbe 2:</label><br>"
+            "<input type='color' name='col2' class='pure-input-1 pure-u-23-24' style='height: 32px;' value='" + stateCol2_str + "'>"
+            "</div>"
+            "</div>"
+            "<div class='pure-control-group' style='margin-bottom: 10pt;'>"
+            "<label>Helligkeit:</label><br>"
+            "<input type='number' class='pure-input-1 pure-u-1-1' min='0' max='31' name='brightness' value='" + stateBrightness + "'>"
+            "</div>"
+            "<label class='pure-checkbox'>"
+            "<input name='showEsIst' type='checkbox' " + stateEsIstOn + "> „ES IST” anzeigen"
+            "</label>"
+            "</fieldset>"
+            "<label>Wireless Einstellungen:</label>"
+            "<fieldset class='pure-group'>"
+            "<input type='text' name='wifiSsid' class='pure-input-1 pure-u-1-1' placeholder='WLAN-Name' value='" + _ssid + "'>"
+            "<input type='password' name='wifiPassword' class='pure-input-1 pure-u-1-1' placeholder='Passwort' value='" + _password + "'>"
+            "</fieldset>"
+            "<button type='submit' class='pure-button pure-input-1 pure-u-1-1 pure-button-primary'>Speichern</button>"
+            "</form>"
+            "</div>"
+            "</body>"
+            "</html>"
+        );
+
+        Serial.println("Delivered /");
     });
 
     _server.on("/", HTTP_POST, [this]() {
+        _showEsIst = false;
+
         for (int i = 0; i < _server.args(); i++) {
             if (_server.argName(i) == "showEsIst") {
                 if (_server.arg(i) == "on") {
                     _showEsIst = true;
-                } else if (_server.arg(i) == "off") {
-                    _showEsIst = false;
                 }
             } else if (_server.argName(i) == "brightness") {
                 _display.setBrightness(_server.arg(i).toInt());
@@ -298,18 +341,15 @@ void Wordclock::setupWebserver() {
             } else if (_server.argName(i) == "wifiPassword") {
                 _password = _server.arg(i);
             }
-            writeWirelessConfig(_ssid.c_str(), _password.c_str());
-            connectWiFi(_ssid, _password, true);
-
-            Serial.println("Wrote wireless config:");
-            Serial.println("New SSID: " + _ssid);
-            Serial.println("New Pass: " + _password);
-
-            readWirelessConfig();
-
-            Serial.println("EEPROM SSID: " + _ssid);
-            Serial.println("EEPROM Pass: " + _password);
         }
+
+        writeWirelessConfig(_ssid.c_str(), _password.c_str());
+        connectWiFi(_ssid, _password, true);
+
+        Serial.println("Wrote wireless config:");
+        Serial.println("New SSID: " + _ssid);
+        Serial.println("New Pass: " + _password);
+
         _server.send(200, "text/html", "<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Wordclock Configuration</title></head><body><a href=\"/\">Zurück</a></body></html>");
     });
     //_server.on("/color", handleColors);
