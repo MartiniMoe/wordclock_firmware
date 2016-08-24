@@ -1,19 +1,22 @@
 #include "Wordclock.hpp"
 
+extern "C" {
+#include "user_interface.h"
+}
+
 Wordclock wordclock;
 
 String ip;
 
-void setup(void){
-    Serial.begin(9600);
-    delay(2000);
+void setup(void) {
+    system_update_cpu_freq(160);
 
-    Serial.println("This is Wordclock speaking.");
+    Serial.begin(9600);
+    delay(4000);
 
     ip = WiFi.localIP().toString();
 
     wordclock.setupWebserver();
-    wordclock.setupAccessPoint("Wordclock", "wordclock");
     wordclock.setupNtp();
 
     wordclock.begin();

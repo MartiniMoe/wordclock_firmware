@@ -1,4 +1,6 @@
 #include "Wordclock.hpp"
+#include "fablab.h"
+#include "hasi.h"
 
 Wordclock::Wordclock()
     : _server(80),
@@ -12,6 +14,36 @@ Wordclock::Wordclock()
 }
 
 void Wordclock::begin() {
+    _display.clearPixels();
+
+    for (int y = 0; y < 10; y++) {
+        for (int x = 0; x < 11; x++) {
+
+            rgb_color col = { .red = bootLogo_FABLAB[y][x][0],
+                              .green = bootLogo_FABLAB[y][x][1],
+                              .blue = bootLogo_FABLAB[y][x][2] };
+
+            _display.setPixelColor(x, y, col);
+        }
+    }
+
+    _display.directlyFlush();
+    delay(5000);
+
+    for (int y = 0; y < 10; y++) {
+        for (int x = 0; x < 11; x++) {
+
+            rgb_color col = { .red = bootLogo_HASI[y][x][0],
+                              .green = bootLogo_HASI[y][x][1],
+                              .blue = bootLogo_HASI[y][x][2] };
+
+            _display.setPixelColor(x, y, col);
+        }
+    }
+
+    _display.directlyFlush();
+    delay(5000);
+
     EEPROM.begin(512);
     //writeWirelessConfig("HaSi-Kein-Internet-Legacy", "bugsbunny");
     readWirelessConfig();
@@ -42,16 +74,41 @@ void Wordclock::loop() {
 
 void Wordclock::connectWiFi(String ssid, String password, bool forceConnect) {
     static bool connecting = false;
+    static int counter = 0;
+    static bool apMode = false;
+
+    if (forceConnect) {
+        counter = 0;
+        apMode = false;
+    }
+
+    if (apMode) {
+        return;
+    }
+
+    if (counter > SWITCH_TO_AP_COUNTER_LIMIT && !apMode) {
+        Serial.println("Switching to AP mode, could not connect to the WiFi!");
+
+        WiFi.mode(WIFI_AP);
+        setupAccessPoint("Wordclock", "fablab1337");
+
+        apMode = true;
+    }
 
     if ((!connecting && WiFi.status() != WL_CONNECTED) || forceConnect) {
         connecting = true;
 
         _ssid = ssid.c_str();
         _password = password.c_str();
+
+        WiFi.mode(WIFI_STA);
         WiFi.hostname(_hostname);
         WiFi.begin(_ssid.c_str(), _password.c_str());
     } else if (WiFi.status() == WL_CONNECTED) {
         connecting = false;
+        counter = 0;
+    } else if (connecting && counter <= SWITCH_TO_AP_COUNTER_LIMIT) {
+        counter++;
     }
 }
 
@@ -323,6 +380,8 @@ void Wordclock::setupWebserver() {
     });
 
     _server.on("/", HTTP_POST, [this]() {
+        bool wifiChanged = false;
+
         _showEsIst = false;
 
         for (int i = 0; i < _server.args(); i++) {
@@ -337,20 +396,30 @@ void Wordclock::setupWebserver() {
             } else if (_server.argName(i) == "col2") {
                 _display.setColor2(parseRGB(_server.arg(i)));
             } else if (_server.argName(i) == "wifiSsid") {
+                if (!_ssid.equals(_server.arg(i))) {
+                    wifiChanged = true;
+                }
+
                 _ssid = _server.arg(i);
             } else if (_server.argName(i) == "wifiPassword") {
+                if (!_password.equals(_server.arg(i))) {
+                    wifiChanged = true;
+                }
+
                 _password = _server.arg(i);
             }
         }
 
-        writeWirelessConfig(_ssid.c_str(), _password.c_str());
-        connectWiFi(_ssid, _password, true);
+        _server.send(200, "text/html", "<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Wordclock Configuration</title></head><body>Einstellungen wurden übernommen!</body></html>");
 
-        Serial.println("Wrote wireless config:");
-        Serial.println("New SSID: " + _ssid);
-        Serial.println("New Pass: " + _password);
+        if (wifiChanged) {
+            writeWirelessConfig(_ssid.c_str(), _password.c_str());
+            connectWiFi(_ssid, _password, true);
 
-        _server.send(200, "text/html", "<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Wordclock Configuration</title></head><body><a href=\"/\">Zurück</a></body></html>");
+            Serial.println("Wrote wireless config:");
+            Serial.println("New SSID: " + _ssid);
+            Serial.println("New Pass: " + _password);
+        }
     });
     //_server.on("/color", handleColors);
     //_server.onNotFound(handleNotFound);

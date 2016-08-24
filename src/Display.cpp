@@ -47,6 +47,10 @@ void Display::writePixels() {
     memcpy(_ledColors, _ledColorsNew, sizeof(_ledColorsNew));
 }
 
+void Display::directlyFlush() {
+    _ledStrip.write(_ledColorsNew, LED_COUNT, 31);
+}
+
 int Display::getBrightness() {
     return _ledBrightness;
 }

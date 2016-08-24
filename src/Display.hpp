@@ -30,6 +30,7 @@ public:
     void clearPixels();
     void clearPixels(rgb_color col);
     void writePixels();
+    void directlyFlush();
 
     int getBrightness();
     void setBrightness(int br);
