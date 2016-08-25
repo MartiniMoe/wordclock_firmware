@@ -28,20 +28,26 @@ void Wordclock::begin() {
     }
 
     _display.directlyFlush();
-    delay(5000);
+    delay(7000);
 
-    for (int y = 0; y < 10; y++) {
-        for (int x = 0; x < 11; x++) {
+    for (int i = 0; i < 21 * 10 + 4; i++) {
+        for (int y = 0; y < 10; y++) {
+            for (int x = 0; x < 11; x++) {
+                int ry = (y + i) % 10;
 
-            rgb_color col = { .red = bootLogo_HASI[y][x][0],
-                              .green = bootLogo_HASI[y][x][1],
-                              .blue = bootLogo_HASI[y][x][2] };
+                rgb_color col = { .red = bootLogo_HASI[ry][x][0],
+                                  .green = bootLogo_HASI[ry][x][1],
+                                  .blue = bootLogo_HASI[ry][x][2] };
 
-            _display.setPixelColor(x, y, col);
+                _display.setPixelColor(x, y, col);
+            }
         }
+
+        _display.directlyFlush();
+
+        delayMicroseconds(100 * i / 4);
     }
 
-    _display.directlyFlush();
     delay(5000);
 
     EEPROM.begin(512);
