@@ -5,12 +5,13 @@
 Wordclock::Wordclock()
     : _server(80),
       _display(),
+      _dnsServer(),
       _showEsIst(true),
       _hostname("wordclock"),
       _ssid(""),
       _password(""),
-      _apSsid(""),
-      _apPassword("") {
+      _apSsid("wordclock_config"),
+      _apPassword("wordclock_config") {
 }
 
 void Wordclock::begin() {
@@ -64,6 +65,7 @@ void Wordclock::begin() {
 void Wordclock::loop() {
     connectWiFi(_ssid, _password, false);
 
+    _dnsServer.processNextRequest();
     _server.handleClient();
     //_display.clearPixels( rgb_color { .red = 0, .green = 255, .blue = 0 });
     _display.clearPixels();
@@ -96,7 +98,7 @@ void Wordclock::connectWiFi(String ssid, String password, bool forceConnect) {
         Serial.println("Switching to AP mode, could not connect to the WiFi!");
 
         WiFi.mode(WIFI_AP);
-        setupAccessPoint("Wordclock", "fablab1337");
+        setupAccessPoint("wordclock", "wordclock");
 
         apMode = true;
     }
@@ -111,6 +113,7 @@ void Wordclock::connectWiFi(String ssid, String password, bool forceConnect) {
         WiFi.hostname(_hostname);
         WiFi.begin(_ssid.c_str(), _password.c_str());
     } else if (WiFi.status() == WL_CONNECTED) {
+        _dnsServer.stop();
         connecting = false;
         counter = 0;
     } else if (connecting && counter <= SWITCH_TO_AP_COUNTER_LIMIT) {
@@ -127,6 +130,7 @@ void Wordclock::setupAccessPoint(String apSsid, String apPassword) {
     apSn.fromString("255.255.255.0");
     WiFi.softAPConfig(apIp, apGw, apSn);
     WiFi.softAP(_apSsid.c_str(), _apPassword.c_str());
+    _dnsServer.start(DNS_PORT, "*", apIp);
 }
 
 void Wordclock::setupNtp() {
@@ -310,14 +314,8 @@ String Wordclock::generateRGB(rgb_color color) {
     return String("#" + String(hex));
 }
 
-void Wordclock::setupWebserver() {
-    _server.on("/pure-min-reduced.css", HTTP_GET, [this]() {
-        _server.send(200, "text/css", F(CONFIG_PAGE_CSS));
+void Wordclock::handleRootGet() {
 
-        Serial.println("Delivered /pure-min-reduced.css");
-    });
-
-    _server.on("/", HTTP_GET, [this]() {
         String stateEsIstOn = "";
 
         if (_showEsIst) {
@@ -340,10 +338,10 @@ void Wordclock::setupWebserver() {
             "<meta charset='UTF-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
             "<title>Wordclock Configuration</title>"
-            "<link rel='stylesheet' type='text/css' href='/pure-min-reduced.css'>"
             "<style>"
             "h1 { text-align: center; }"
             ".wordclock-content { background: #F0F0F0; border: #F0F0F0 4px solud; border-radius: 8px; width: 40%; min-width: 200pt; margin: 0 auto; padding: 20px; }"
+            CONFIG_PAGE_CSS
             "</style>"
             "</head>"
             "<body>"
@@ -383,51 +381,69 @@ void Wordclock::setupWebserver() {
         );
 
         Serial.println("Delivered /");
+}
+
+void Wordclock::handleRootPost() {
+    bool wifiChanged = false;
+
+    _showEsIst = false;
+
+    for (int i = 0; i < _server.args(); i++) {
+        if (_server.argName(i) == "showEsIst") {
+            if (_server.arg(i) == "on") {
+                _showEsIst = true;
+            }
+        } else if (_server.argName(i) == "brightness") {
+            _display.setBrightness(_server.arg(i).toInt());
+        } else if (_server.argName(i) == "col1") {
+            _display.setColor1(parseRGB(_server.arg(i)));
+        } else if (_server.argName(i) == "col2") {
+            _display.setColor2(parseRGB(_server.arg(i)));
+        } else if (_server.argName(i) == "wifiSsid") {
+            if (!_ssid.equals(_server.arg(i))) {
+                wifiChanged = true;
+            }
+
+            _ssid = _server.arg(i);
+        } else if (_server.argName(i) == "wifiPassword") {
+            if (!_password.equals(_server.arg(i))) {
+                wifiChanged = true;
+            }
+
+            _password = _server.arg(i);
+        }
+    }
+
+    _server.send(200, "text/html", "<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Wordclock Configuration</title></head><body>Einstellungen wurden übernommen!</body></html>");
+
+    if (wifiChanged) {
+        writeWirelessConfig(_ssid.c_str(), _password.c_str());
+        connectWiFi(_ssid, _password, true);
+
+        Serial.println("Wrote wireless config:");
+        Serial.println("New SSID: " + _ssid);
+        Serial.println("New Pass: " + _password);
+    }
+}
+
+void Wordclock::setupWebserver() {
+    //_server.on("/pure-min-reduced.css", HTTP_GET, [this]() {
+    //    _server.send(200, "text/css", F(CONFIG_PAGE_CSS));
+
+    //    Serial.println("Delivered /pure-min-reduced.css");
+    //});
+
+    _server.onNotFound([this]() {
+        this->handleRootGet();
+    });
+
+    _server.on("/", HTTP_GET, [this]() {
+        this->handleRootGet();
     });
 
     _server.on("/", HTTP_POST, [this]() {
-        bool wifiChanged = false;
-
-        _showEsIst = false;
-
-        for (int i = 0; i < _server.args(); i++) {
-            if (_server.argName(i) == "showEsIst") {
-                if (_server.arg(i) == "on") {
-                    _showEsIst = true;
-                }
-            } else if (_server.argName(i) == "brightness") {
-                _display.setBrightness(_server.arg(i).toInt());
-            } else if (_server.argName(i) == "col1") {
-                _display.setColor1(parseRGB(_server.arg(i)));
-            } else if (_server.argName(i) == "col2") {
-                _display.setColor2(parseRGB(_server.arg(i)));
-            } else if (_server.argName(i) == "wifiSsid") {
-                if (!_ssid.equals(_server.arg(i))) {
-                    wifiChanged = true;
-                }
-
-                _ssid = _server.arg(i);
-            } else if (_server.argName(i) == "wifiPassword") {
-                if (!_password.equals(_server.arg(i))) {
-                    wifiChanged = true;
-                }
-
-                _password = _server.arg(i);
-            }
-        }
-
-        _server.send(200, "text/html", "<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Wordclock Configuration</title></head><body>Einstellungen wurden übernommen!</body></html>");
-
-        if (wifiChanged) {
-            writeWirelessConfig(_ssid.c_str(), _password.c_str());
-            connectWiFi(_ssid, _password, true);
-
-            Serial.println("Wrote wireless config:");
-            Serial.println("New SSID: " + _ssid);
-            Serial.println("New Pass: " + _password);
-        }
+        this->handleRootPost();
     });
-    //_server.on("/color", handleColors);
-    //_server.onNotFound(handleNotFound);
+
     _server.begin();
 }
