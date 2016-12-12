@@ -7,6 +7,7 @@ Wordclock::Wordclock()
       _display(),
       _dnsServer(),
       _showEsIst(true),
+      _enableAutoBrighness(false),
       _hostname("wordclock"),
       _ssid(""),
       _password(""),
@@ -65,6 +66,12 @@ void Wordclock::begin() {
 void Wordclock::loop() {
     connectWiFi(_ssid, _password, false);
 
+    if (_enableAutoBrighness) {
+        int newBrighness = int((analogRead(A0)/(1024/30))+1.5);
+        Serial.print("Auto Brightness: "); Serial.println(newBrighness);
+        _display.setBrightness(newBrighness);
+    }
+
     _dnsServer.processNextRequest();
     _server.handleClient();
     //_display.clearPixels( rgb_color { .red = 0, .green = 255, .blue = 0 });
@@ -114,6 +121,7 @@ void Wordclock::connectWiFi(String ssid, String password, bool forceConnect) {
         WiFi.begin(_ssid.c_str(), _password.c_str());
     } else if (WiFi.status() == WL_CONNECTED) {
         _dnsServer.stop();
+        Serial.print("IP: "); Serial.println(WiFi.localIP());
         connecting = false;
         counter = 0;
     } else if (connecting && counter <= SWITCH_TO_AP_COUNTER_LIMIT) {
@@ -317,11 +325,18 @@ String Wordclock::generateRGB(rgb_color color) {
 void Wordclock::handleRootGet() {
 
         String stateEsIstOn = "";
+        String autoBrightnessOn = "";
 
         if (_showEsIst) {
             stateEsIstOn = "checked";
         } else {
             stateEsIstOn = "";
+        }
+
+        if (_enableAutoBrighness) {
+            autoBrightnessOn = "checked";
+        } else {
+            autoBrightnessOn = "";
         }
 
         String stateBrightness = String(_display.getBrightness());
@@ -367,6 +382,9 @@ void Wordclock::handleRootGet() {
             "<label class='pure-checkbox'>"
             "<input name='showEsIst' type='checkbox' " + stateEsIstOn + "> „ES IST” anzeigen"
             "</label>"
+            "<label class='pure-checkbox'>"
+            "<input name='enableAutoBrighness' type='checkbox' " + autoBrightnessOn + "> „Automatische Helligkeit"
+            "</label>"
             "</fieldset>"
             "<label>Wireless Einstellungen:</label>"
             "<fieldset class='pure-group'>"
@@ -387,11 +405,16 @@ void Wordclock::handleRootPost() {
     bool wifiChanged = false;
 
     _showEsIst = false;
+    _enableAutoBrighness = false;
 
     for (int i = 0; i < _server.args(); i++) {
         if (_server.argName(i) == "showEsIst") {
             if (_server.arg(i) == "on") {
                 _showEsIst = true;
+            }
+        } else if (_server.argName(i) == "enableAutoBrighness") {
+            if (_server.arg(i) == "on") {
+                _enableAutoBrighness = true;
             }
         } else if (_server.argName(i) == "brightness") {
             _display.setBrightness(_server.arg(i).toInt());

@@ -27,6 +27,7 @@ private:
     Display _display;
     DNSServer _dnsServer;
     bool _showEsIst;
+    bool _enableAutoBrighness;
 
     String _hostname;
     String _ssid;
