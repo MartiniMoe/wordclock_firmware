@@ -15,6 +15,7 @@ It features time-synchronisation via NTP and a webinterface for configuration.
 * Custom brightness
 * Auto brightness option, if photoresistor is connected
 * Fancy boot animation showing Fab Lab Logo and HaSi font :)
+* The progress of the current shown time is displayed by fading the letters (one by one) to a second color
 
 Recommended use is with Atom + PlatformIO.
 
