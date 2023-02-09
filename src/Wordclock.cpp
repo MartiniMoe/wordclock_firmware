@@ -1,3 +1,4 @@
+#include "Common.hpp"
 #include "Wordclock.hpp"
 #include "fablab.h"
 #include "hasi.h"

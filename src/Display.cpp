@@ -7,7 +7,8 @@ Display::Display()
       _ledColors{ _color1, },
       _ledColorsNew{ _color1, },
       _ledBrightness( 16 ),
-      _ledStrip() {
+      _ledStrip(LED_COUNT, PIN_DATA, NEO_GRB + NEO_KHZ800) {
+    _ledStrip.begin();
     clearPixels();
 }
 
@@ -40,15 +41,19 @@ void Display::writePixels() {
             fadeLedColors[l].red = int(((1.0-t) * _ledColors[l].red + t * _ledColorsNew[l].red) + 0.5);
             fadeLedColors[l].green = int(((1.0-t) * _ledColors[l].green + t * _ledColorsNew[l].green) + 0.5);
             fadeLedColors[l].blue = int(((1.0-t) * _ledColors[l].blue + t * _ledColorsNew[l].blue) + 0.5);
+	    _ledStrip.setPixelColor(l, fadeLedColors[l].red, fadeLedColors[l].green, fadeLedColors[l].blue);
         }
-        _ledStrip.write(fadeLedColors, LED_COUNT, _ledBrightness);
+        _ledStrip.show();
         delay(3);
     }
     memcpy(_ledColors, _ledColorsNew, sizeof(_ledColorsNew));
 }
 
 void Display::directlyFlush() {
-    _ledStrip.write(_ledColorsNew, LED_COUNT, 31);
+    for (int l = 0; l < LED_COUNT; l++) {
+        _ledStrip.setPixelColor(l, _ledColorsNew[l].red, _ledColorsNew[l].green, _ledColorsNew[l].blue);
+    };
+    _ledStrip.show();
 }
 
 int Display::getBrightness() {
@@ -58,6 +63,7 @@ int Display::getBrightness() {
 void Display::setBrightness(int br) {
     if (br <= 31 && br >= 0) {
         _ledBrightness = br;
+	_ledStrip.setBrightness(8 * _ledBrightness);
     }
 }
 

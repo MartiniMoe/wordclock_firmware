@@ -1,9 +1,9 @@
 #ifndef DISPLAY_HPP
 #define DISPLAY_HPP
 
-#include <APA102.h>
+#include "Common.hpp"
+#include <Adafruit_NeoPixel.h>
 
-#define PIN_CLOCK 13
 #define PIN_DATA  12
 
 #define DISPLAY_WIDTH  11
@@ -19,7 +19,7 @@ private:
     rgb_color _ledColorsNew[LED_COUNT];
     int _ledBrightness;
 
-    APA102<PIN_DATA, PIN_CLOCK> _ledStrip;
+    Adafruit_NeoPixel _ledStrip;
 
     int convertCoordsToArrayPos(int x, int y);
 
