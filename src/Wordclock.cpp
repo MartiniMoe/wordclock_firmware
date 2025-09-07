@@ -27,6 +27,8 @@ void Wordclock::begin() {
     Serial.println("Pass: " + _password);
 
     connectWiFi(_ssid, _password, true);
+
+    readColors();
 }
 
 void Wordclock::loop() {
@@ -150,6 +152,27 @@ void Wordclock::writeWirelessConfig(const char* ssid, const char* password) {
     EEPROM.write(ESSID_LENGTH + PASSWORD_LENGTH - 1, 0);
 
     EEPROM.commit();
+}
+
+void Wordclock::readColors() {
+  _color1 = EEPROM.get(ESSID_LENGTH + PASSWORD_LENGTH, _color1);
+  _color2 = EEPROM.get(ESSID_LENGTH + PASSWORD_LENGTH + sizeof(rgb_color), _color2);
+
+  Serial.print("Read Color1: "); Serial.print(_color1.red); Serial.print(","); Serial.print(_color1.green); Serial.print(","); Serial.println(_color1.blue);
+  Serial.print("Read Color2: "); Serial.print(_color2.red); Serial.print(","); Serial.print(_color2.green); Serial.print(","); Serial.println(_color2.blue);
+
+  _display.setColor1(_color1);
+  _display.setColor2(_color2);
+}
+
+void Wordclock::writeColors(const rgb_color* color1, const rgb_color* color2) {
+  Serial.print("Write Color1: "); Serial.print(color1->red); Serial.print(","); Serial.print(color1->green); Serial.print(","); Serial.println(color1->blue);
+  Serial.print("Write Color2: "); Serial.print(color2->red); Serial.print(","); Serial.print(color2->green); Serial.print(","); Serial.println(color2->blue);
+
+  EEPROM.put(ESSID_LENGTH + PASSWORD_LENGTH, *color1);
+  EEPROM.put(ESSID_LENGTH + PASSWORD_LENGTH + sizeof(rgb_color), *color2);
+
+  EEPROM.commit();
 }
 
 void Wordclock::handleTime(int hour, int minute) {
@@ -384,20 +407,18 @@ void Wordclock::handleRootPost() {
         } else if (_server.argName(i) == "brightness") {
             _display.setBrightness(_server.arg(i).toInt());
         } else if (_server.argName(i) == "col1") {
-            _display.setColor1(parseRGB(_server.arg(i)));
+            _color1 = parseRGB(_server.arg(i));
         } else if (_server.argName(i) == "col2") {
-            _display.setColor2(parseRGB(_server.arg(i)));
+            _color2 = parseRGB(_server.arg(i));
         } else if (_server.argName(i) == "wifiSsid") {
             if (!_ssid.equals(_server.arg(i))) {
                 wifiChanged = true;
             }
-
             _ssid = _server.arg(i);
         } else if (_server.argName(i) == "wifiPassword") {
             if (!_password.equals(_server.arg(i))) {
                 wifiChanged = true;
             }
-
             _password = _server.arg(i);
         }
     }
@@ -412,6 +433,10 @@ void Wordclock::handleRootPost() {
         Serial.println("New SSID: " + _ssid);
         Serial.println("New Pass: " + _password);
     }
+
+    writeColors(&_color1, &_color2);
+    _display.setColor1(_color1);
+    _display.setColor2(_color2);
 }
 
 void Wordclock::setupWebserver() {

@@ -35,8 +35,14 @@ private:
     String _apSsid;
     String _apPassword;
 
+    rgb_color _color1;
+    rgb_color _color2;
+
     void readWirelessConfig();
     void writeWirelessConfig(const char* ssid, const char* password);
+
+    void readColors();
+    void writeColors(const rgb_color* color1, const rgb_color* color2);
 
     void handleRootGet();
     void handleRootPost();
