@@ -19,42 +19,7 @@ Wordclock::Wordclock()
 void Wordclock::begin() {
     _display.clearPixels();
 
-    for (int y = 0; y < 10; y++) {
-        for (int x = 0; x < 11; x++) {
-
-            rgb_color col = { .red = bootLogo_FABLAB[y][x][0],
-                              .green = bootLogo_FABLAB[y][x][1],
-                              .blue = bootLogo_FABLAB[y][x][2] };
-
-            _display.setPixelColor(x, y, col);
-        }
-    }
-
-    _display.directlyFlush();
-    delay(7000);
-
-    for (int i = 0; i < 21 * 10 + 4; i++) {
-        for (int y = 0; y < 10; y++) {
-            for (int x = 0; x < 11; x++) {
-                int ry = (y + i) % 10;
-
-                rgb_color col = { .red = bootLogo_HASI[ry][x][0],
-                                  .green = bootLogo_HASI[ry][x][1],
-                                  .blue = bootLogo_HASI[ry][x][2] };
-
-                _display.setPixelColor(x, y, col);
-            }
-        }
-
-        _display.directlyFlush();
-
-        delayMicroseconds(100 * i / 4);
-    }
-
-    delay(5000);
-
     EEPROM.begin(512);
-    //writeWirelessConfig("HaSi-Kein-Internet-Legacy", "bugsbunny");
     readWirelessConfig();
 
     Serial.println("Connecting to:");
@@ -75,7 +40,6 @@ void Wordclock::loop() {
 
     _dnsServer.processNextRequest();
     _server.handleClient();
-    //_display.clearPixels( rgb_color { .red = 0, .green = 255, .blue = 0 });
     _display.clearPixels();
     time_t now_time = now();
     int now_hour = hour(now_time);
@@ -451,12 +415,6 @@ void Wordclock::handleRootPost() {
 }
 
 void Wordclock::setupWebserver() {
-    //_server.on("/pure-min-reduced.css", HTTP_GET, [this]() {
-    //    _server.send(200, "text/css", F(CONFIG_PAGE_CSS));
-
-    //    Serial.println("Delivered /pure-min-reduced.css");
-    //});
-
     _server.onNotFound([this]() {
         this->handleRootGet();
     });
